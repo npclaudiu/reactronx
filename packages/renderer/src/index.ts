@@ -11,14 +11,14 @@ export class ReactronxRenderer {
     /**
      * Dispatch a message to the Main Process.
      */
-    sendCommand(command: string, payload: any) {
+    sendCommand(command: string, payload: unknown) {
         this.transport.send("reactronx:command", { command, payload });
     }
 
     /**
      * Listen for a state update or event from the Main Process to mutate the DOM.
      */
-    onEvent(event: string, callback: (payload: any) => void) {
+    onEvent(event: string, callback: (payload: unknown) => void) {
         return this.transport.on(`reactronx:event:${event}`, callback);
     }
 }

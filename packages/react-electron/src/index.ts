@@ -4,11 +4,12 @@ export { DefaultElectronMainTransport } from "./transport";
 
 // Add global JSX declarations
 declare global {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace JSX {
         interface IntrinsicElements {
-            app: any;
-            window: any;
-            webcontents: any;
+            app: Record<string, unknown>;
+            window: Record<string, unknown>;
+            webcontents: Record<string, unknown>;
         }
     }
 }

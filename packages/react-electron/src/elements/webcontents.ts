@@ -1,12 +1,14 @@
-export class WebContentsElement {
-    public type = "webcontents";
-    public props: any;
+import { ElectronElement } from "./types";
 
-    constructor(props: any) {
+export class WebContentsElement implements ElectronElement {
+    public type = "webcontents";
+    public props: Record<string, unknown>;
+
+    constructor(props: Record<string, unknown>) {
         this.props = props;
     }
 
-    updateProps(newProps: any) {
+    updateProps(newProps: Record<string, unknown>) {
         this.props = newProps;
     }
 }

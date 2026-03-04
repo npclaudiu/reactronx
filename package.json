@@ -21,10 +21,12 @@
         "build": "pnpm -r run build",
         "lint": "pnpm -r run lint",
         "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-        "typecheck": "tsc -b"
+        "typecheck": "tsc -b",
+        "test:integration": "playwright test"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
+        "@playwright/test": "^1.58.2",
         "@types/node": "^20.11.24",
         "@typescript-eslint/eslint-plugin": "^8.56.1",
         "@typescript-eslint/parser": "^8.56.1",
@@ -32,9 +34,16 @@
         "globals": "^17.4.0",
         "prettier": "^3.2.5",
         "ts-loader": "^9.5.4",
+        "ts-node": "^10.9.2",
         "typescript": "^5.3.3",
         "typescript-eslint": "^8.56.1",
         "webpack": "^5.105.4",
         "webpack-cli": "^6.0.1"
+    },
+    "dependencies": {
+        "@types/react": "^18.3.28",
+        "@types/react-dom": "^18.3.7",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
     }
 }

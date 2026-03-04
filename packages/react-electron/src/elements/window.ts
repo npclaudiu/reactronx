@@ -1,49 +1,53 @@
 import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
+import { ElectronElement } from "./types";
 
-export class WindowElement {
+export class WindowElement implements ElectronElement {
     public type = "window";
-    public props: any;
+    public props: Record<string, unknown>;
     public window: BrowserWindow;
 
-    constructor(props: any) {
+    constructor(props: Record<string, unknown>) {
         this.props = props;
 
         const options: BrowserWindowConstructorOptions = {
-            width: props.width || 800,
-            height: props.height || 600,
-            title: props.title || "Reactronx App",
+            width: typeof props.width === "number" ? props.width : 800,
+            height: typeof props.height === "number" ? props.height : 600,
+            title: typeof props.title === "string" ? props.title : "Reactronx App",
             webPreferences: {
-                preload: props.preload,
+                preload: typeof props.preload === "string" ? props.preload : undefined,
             },
         };
 
         this.window = new BrowserWindow(options);
 
-        if (props.onClose) {
-            this.window.on("closed", props.onClose);
+        if (typeof props.onClose === "function") {
+            this.window.on("closed", props.onClose as () => void);
         }
     }
 
-    appendChild(child: any) {
+    appendChild(child: ElectronElement) {
         if (child.type === "webcontents") {
-            if (child.props.url) {
+            if (typeof child.props.url === "string") {
                 this.window.loadURL(child.props.url);
-            } else if (child.props.file) {
+            } else if (typeof child.props.file === "string") {
                 this.window.loadFile(child.props.file);
             }
         }
     }
 
-    removeChild(child: any) {
+    removeChild(_child: ElectronElement) {
         // Remove child logic
     }
 
-    updateProps(newProps: any) {
-        if (newProps.title && newProps.title !== this.props.title) {
+    updateProps(newProps: Record<string, unknown>) {
+        if (typeof newProps.title === "string" && newProps.title !== this.props.title) {
             this.window.setTitle(newProps.title);
         }
         if (newProps.width !== this.props.width || newProps.height !== this.props.height) {
-            this.window.setSize(newProps.width || 800, newProps.height || 600);
+            this.window.setSize(
+                typeof newProps.width === "number" ? newProps.width : 800,
+                typeof newProps.height === "number" ? newProps.height : 600,
+            );
         }
         this.props = newProps;
     }

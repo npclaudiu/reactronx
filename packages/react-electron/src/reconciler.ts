@@ -4,13 +4,42 @@ import { AppElement } from "./elements/app";
 import { WindowElement } from "./elements/window";
 import { WebContentsElement } from "./elements/webcontents";
 import { app } from "electron";
+import { ElectronElement } from "./elements/types";
 
-const hostConfig: ReactReconciler.HostConfig<any, any, any, any, any, any, any, any, any, any, any, any, any> = {
+type Type = string;
+type Props = Record<string, unknown>;
+type Container = RootContainer;
+type Instance = ElectronElement;
+type TextInstance = never;
+type SuspenseInstance = never;
+type HydratableInstance = never;
+type PublicInstance = Instance;
+type HostContext = Record<string, unknown>;
+type UpdatePayload = Record<string, unknown>;
+type ChildSet = never;
+type TimeoutHandle = ReturnType<typeof setTimeout>;
+type NoTimeout = -1;
+
+const hostConfig: ReactReconciler.HostConfig<
+    Type,
+    Props,
+    Container,
+    Instance,
+    TextInstance,
+    SuspenseInstance,
+    HydratableInstance,
+    PublicInstance,
+    HostContext,
+    UpdatePayload,
+    ChildSet,
+    TimeoutHandle,
+    NoTimeout
+> = {
     supportsMutation: true,
     supportsPersistence: false,
     supportsHydration: false,
 
-    createInstance(type, props, rootContainer, hostContext, internalHandle) {
+    createInstance(type, props, _rootContainer, _hostContext, _internalHandle) {
         switch (type) {
             case "app":
                 return new AppElement(props);
@@ -21,7 +50,7 @@ const hostConfig: ReactReconciler.HostConfig<any, any, any, any, any, any, any, 
             case "menu":
             case "menuitem":
                 // Menu logic to be implemented later
-                return { type, props };
+                return { type, props } as ElectronElement;
             default:
                 throw new Error(`Unsupported element type: ${type}`);
         }
@@ -70,7 +99,7 @@ const hostConfig: ReactReconciler.HostConfig<any, any, any, any, any, any, any, 
         return false;
     },
     prepareUpdate() {
-        return true;
+        return {};
     },
     shouldSetTextContent() {
         return false;
@@ -118,11 +147,13 @@ const hostConfig: ReactReconciler.HostConfig<any, any, any, any, any, any, any, 
 const reconciler = ReactReconciler(hostConfig);
 
 class RootContainer {
-    children: any[] = [];
-    appendChild(child: any) {
+    children: ElectronElement[] = [];
+
+    appendChild(child: ElectronElement) {
         this.children.push(child);
     }
-    removeChild(child: any) {
+
+    removeChild(child: ElectronElement) {
         this.children = this.children.filter((c) => c !== child);
     }
 }

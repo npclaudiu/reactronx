@@ -1,26 +1,27 @@
 import { app } from "electron";
+import { ElectronElement } from "./types";
 
-export class AppElement {
+export class AppElement implements ElectronElement {
     public type = "app";
-    public props: any;
+    public props: Record<string, unknown>;
 
-    constructor(props: any) {
+    constructor(props: Record<string, unknown>) {
         this.props = props;
     }
 
-    appendChild(child: any) {
+    appendChild(_child: ElectronElement) {
         // App is a container
     }
 
-    removeChild(child: any) {
+    removeChild(_child: ElectronElement) {
         // Handle child removal
     }
 
-    updateProps(newProps: any) {
+    updateProps(newProps: Record<string, unknown>) {
         this.props = newProps;
         // Bind app lifecycle events if passed (e.g., onReady, onWindowAllClosed)
-        if (this.props.onWindowAllClosed) {
-            app.on("window-all-closed", this.props.onWindowAllClosed);
+        if (typeof this.props.onWindowAllClosed === "function") {
+            app.on("window-all-closed", this.props.onWindowAllClosed as () => void);
         } else {
             app.on("window-all-closed", () => {
                 if (process.platform !== "darwin") app.quit();

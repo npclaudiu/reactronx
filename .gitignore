@@ -4,3 +4,5 @@ dist
 .pnp.js
 coverage
 .DS_Store
+*.tsbuildinfo
+/tests/integration/results
