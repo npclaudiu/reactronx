@@ -11,13 +11,19 @@
             "package-name": "@reactronx/guest",
             "bump-minor-pre-major": true,
             "bump-patch-for-minor-pre-major": true
+        },
+        "packages/guest-preload": {
+            "release-type": "node",
+            "package-name": "@reactronx/guest-preload",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
         }
     },
     "plugins": [
         {
             "type": "linked-versions",
             "groupName": "reactronx",
-            "components": ["@reactronx/host", "@reactronx/guest"]
+            "components": ["@reactronx/host", "@reactronx/guest", "@reactronx/guest-preload"]
         }
     ]
 }

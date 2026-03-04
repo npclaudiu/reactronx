@@ -1,0 +1,27 @@
+{
+    "name": "@reactronx/guest-preload",
+    "version": "0.1.0",
+    "description": "React-backed Electron reconciler resources (Preload Script)",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "lint": "eslint \"src/**/*.{ts,tsx}\"",
+        "typecheck": "tsc --noEmit"
+    },
+    "peerDependencies": {
+        "electron": ">=28.0.0"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "tsup": "^8.0.2",
+        "typescript": "^5.3.3"
+    },
+    "author": "Claudiu Nedelcu",
+    "license": "BSD-2-Clause",
+    "publishConfig": {
+        "access": "public"
+    }
+}

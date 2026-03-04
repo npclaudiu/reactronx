@@ -6,6 +6,9 @@
         },
         {
             "path": "./packages/guest"
+        },
+        {
+            "path": "./packages/guest-preload"
         }
     ]
 }

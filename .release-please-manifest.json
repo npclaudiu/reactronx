@@ -1,4 +1,5 @@
 {
     "packages/host": "0.1.0",
-    "packages/guest": "0.1.0"
+    "packages/guest": "0.1.0",
+    "packages/guest-preload": "0.1.0"
 }

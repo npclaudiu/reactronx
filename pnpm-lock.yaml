@@ -58,6 +58,19 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/guest-preload:
+    dependencies:
+      electron:
+        specifier: '>=28.0.0'
+        version: 40.6.1
+    devDependencies:
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   packages/host:
     dependencies:
       electron:
