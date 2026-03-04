@@ -10,26 +10,27 @@ Electron applications declaratively by backing React components with Electron pr
 To use `reactronx` in your Electron application, you will need to orchestrate the three core packages across Electron's
 distinct process boundaries.
 
-1. **Main Process (`@reactronx/host`)**: In your Electron entry point (typically `main.js` or `index.ts`), you will
-   initialize `@reactronx/host`. Instead of imperatively creating `new BrowserWindow()` instances, you will write
-   standard React code that orchestrates your Electron primitives and use the custom reconciler to render them.
+1. **Main Process (`@reactronx/react-electron`)**: In your Electron entry point (typically `main.js` or `index.ts`), you
+   will initialize `@reactronx/react-electron`. Instead of imperatively creating `new BrowserWindow()` instances, you
+   will write standard React code that orchestrates your Electron primitives and use the custom reconciler to render
+   them.
 
-2. **Preload Script (`@reactronx/guest-preload`)**: Inject `@reactronx/guest-preload` into your `preload.js` script.
-   This package will execute within the context isolation boundary, securely bridging the IPC channels required for the
-   renderer to communicate with the host reconciler.
+2. **Preload Script (`@reactronx/preload`)**: Inject `@reactronx/preload` into your `preload.js` script. This package
+   will execute within the context isolation boundary, securely bridging the IPC channels required for the renderer to
+   communicate with the host reconciler.
 
-3. **Renderer Process (`@reactronx/guest`)**: In your web bundles (e.g., your Vite or Webpack frontend), import and
-   initialize `@reactronx/guest`. This acts as the peer React tree that communicates with the `host` over the injected
-   IPC bridge, completing the loop.
+3. **Renderer Process (`@reactronx/renderer`)**: In your web bundles (e.g., your Vite or Webpack frontend), import and
+   initialize `@reactronx/renderer`. This acts as the peer React tree that communicates with the `host` over the
+   injected IPC bridge, completing the loop.
 
 ### Example: Managing Electron with React
 
-Instead of writing imperative EventEmitters and arrays to track open windows, `@reactronx/host` allows you to define
-your desktop application layout cleanly, just like a web page:
+Instead of writing imperative EventEmitters and arrays to track open windows, `@reactronx/react-electron` allows you to
+define your desktop application layout cleanly, just like a web page:
 
 ```tsx
 import React, { useState } from "react";
-import { render } from "@reactronx/host";
+import { render } from "@reactronx/react-electron";
 
 function App() {
     const [preferencesOpen, setPreferencesOpen] = useState(false);
@@ -37,21 +38,21 @@ function App() {
     return (
         <app>
             <menu>
-                <menuItem label="File">
-                    <menuItem label="Preferences" onClick={() => setPreferencesOpen(true)} />
-                    <menuItem label="Quit" role="quit" />
-                </menuItem>
+                <menuitem label="File">
+                    <menuitem label="Preferences" onClick={() => setPreferencesOpen(true)} />
+                    <menuitem label="Quit" role="quit" />
+                </menuitem>
             </menu>
 
             {/* The Main Application Window */}
             <window title="My Reactronx App" width={800} height={600} onClose={() => console.log("Main window closed")}>
-                <webContents url="http://localhost:3000" />
+                <webcontents url="http://localhost:3000" />
             </window>
 
             {/* Conditionally render a Preferences Window */}
             {preferencesOpen && (
                 <window title="Preferences" width={400} height={300} onClose={() => setPreferencesOpen(false)}>
-                    <webContents url="http://localhost:3000/preferences" />
+                    <webcontents url="http://localhost:3000/preferences" />
                 </window>
             )}
         </app>
@@ -70,7 +71,7 @@ Reconciler to abstract away the asynchronous and complex API surface of native d
 ### The Host Reconciler
 
 Historically, building Electron apps means maintaining messy, imperative state machines to track when windows are
-opened, closed, or moved. `@reactronx/host` solves this by providing a
+opened, closed, or moved. `@reactronx/react-electron` solves this by providing a
 [React Custom Reconciler](https://github.com/facebook/react/tree/main/packages/react-reconciler).
 
 When you render a `<window>` or `<menu>` component, the reconciler translates those React fiber nodes into actual
@@ -83,34 +84,34 @@ Because Electron enforces Context Isolation for security, the web pages (Rendere
 Electron native modules. Therefore, if a user clicks a button in the web page that needs to resize the window, that
 command must cross the process boundary.
 
-`@reactronx/guest-preload` serves as this secure conduit. It utilizes `contextBridge.exposeInMainWorld` to attach
-specific, heavily-scrutinized IPC event emitters and listeners to the `window` object of the web page.
+`@reactronx/preload` serves as this secure conduit. It utilizes `contextBridge.exposeInMainWorld` to attach specific,
+heavily-scrutinized IPC event emitters and listeners to the `window` object of the web page.
 
 ### The Guest Renderer
 
-`@reactronx/guest` is a lightweight abstraction that sits in the Renderer process alongside standard `react-dom`. It is
-fundamentally responsible for hooking into the APIs exposed by the preload script, allowing the frontend React
+`@reactronx/renderer` is a lightweight abstraction that sits in the Renderer process alongside standard `react-dom`. It
+is fundamentally responsible for hooking into the APIs exposed by the preload script, allowing the frontend React
 components to trigger effects or query states managed by the host reconciler in the Main Process.
 
 ---
 
 ## Packages
 
-### `@reactronx/host`
+### `@reactronx/react-electron`
 
 Runs in the **Main Process** of an Electron application. It provides a custom React Reconciler backed by Electron
 primitives (like `BrowserWindow`, `WebContentsView`, `Menu`, etc.), allowing you to manage your application's native
 lifecycle with React.
 
-### `@reactronx/guest`
+### `@reactronx/renderer`
 
 Runs in the **Renderer Process** of an Electron application. It acts as the peer package communicating with
-`@reactronx/host` via Electron IPC to facilitate renderer-side operations.
+`@reactronx/react-electron` via Electron IPC to facilitate renderer-side operations.
 
-### `@reactronx/guest-preload`
+### `@reactronx/preload`
 
 Runs in the **Preload Script** of an Electron application. It has access to Electron-specific resources (such as IPC
-bridges) and is responsible for securely exposing APIs to the `@reactronx/guest` renderer package.
+bridges) and is responsible for securely exposing APIs to the `@reactronx/renderer` renderer package.
 
 ## Development
 
@@ -145,8 +146,8 @@ Release Please automatically updates the changelogs, bumps the semantic versioni
 pending **Release PR**.
 
 Merging this Release PR triggers the GitHub Actions workflow, which securely builds and publishes the packages to the
-NPM registry. Thanks to the `linked-versions` plugin, `@reactronx/host`, `@reactronx/guest`, and
-`@reactronx/guest-preload` will always be published bearing the exact same version number.
+NPM registry. Thanks to the `linked-versions` plugin, `@reactronx/react-electron`, `@reactronx/renderer`, and
+`@reactronx/preload` will always be published bearing the exact same version number.
 
 For information on how to configure the NPM registry to trust this GitHub Actions workflow, please refer to the
 [NPM Provenance Guide](./docs/guides/npm-provenance.md).

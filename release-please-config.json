@@ -6,15 +6,15 @@
             "bump-minor-pre-major": true,
             "bump-patch-for-minor-pre-major": true
         },
-        "packages/guest": {
+        "packages/renderer": {
             "release-type": "node",
-            "package-name": "@reactronx/guest",
+            "package-name": "@reactronx/renderer",
             "bump-minor-pre-major": true,
             "bump-patch-for-minor-pre-major": true
         },
-        "packages/guest-preload": {
+        "packages/preload": {
             "release-type": "node",
-            "package-name": "@reactronx/guest-preload",
+            "package-name": "@reactronx/preload",
             "bump-minor-pre-major": true,
             "bump-patch-for-minor-pre-major": true
         }

@@ -2,13 +2,13 @@
     "files": [],
     "references": [
         {
-            "path": "./packages/host"
+            "path": "./packages/react-electron"
         },
         {
-            "path": "./packages/guest"
+            "path": "./packages/renderer"
         },
         {
-            "path": "./packages/guest-preload"
+            "path": "./packages/preload"
         }
     ]
 }

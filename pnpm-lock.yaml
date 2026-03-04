@@ -45,26 +45,7 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1(webpack@5.105.4)
 
-  packages/guest:
-    dependencies:
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
-    devDependencies:
-      '@types/react':
-        specifier: ^18.2.0
-        version: 18.3.28
-      '@types/react-dom':
-        specifier: ^18.2.19
-        version: 18.3.7(@types/react@18.3.28)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/guest-preload:
+  packages/preload:
     dependencies:
       electron:
         specifier: '>=28.0.0'
@@ -74,7 +55,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/host:
+  packages/react-electron:
     dependencies:
       electron:
         specifier: '>=28.0.0'
@@ -92,6 +73,25 @@ importers:
       '@types/react-reconciler':
         specifier: ^0.28.8
         version: 0.28.9(@types/react@18.3.28)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/renderer:
+    dependencies:
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.2.0
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.2.19
+        version: 18.3.7(@types/react@18.3.28)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
