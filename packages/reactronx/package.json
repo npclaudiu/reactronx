@@ -18,11 +18,19 @@
     "dependencies": {
         "@rspack/core": "^1.5.4",
         "commander": "^14.0.2",
-        "jiti": "^2.6.1"
+        "jiti": "^2.6.1",
+        "typescript": "^5.3.3"
+    },
+    "peerDependencies": {
+        "typescript": ">=5.3.3"
+    },
+    "peerDependenciesMeta": {
+        "typescript": {
+            "optional": true
+        }
     },
     "devDependencies": {
-        "@types/node": "^20.11.24",
-        "typescript": "^5.3.3"
+        "@types/node": "^20.11.24"
     },
     "author": "Claudiu Nedelcu",
     "license": "BSD-2-Clause",

@@ -5,19 +5,12 @@
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "scripts": {
-        "build": "webpack && tsc --emitDeclarationOnly",
-        "dev": "webpack --watch",
+        "build": "reactronx build",
         "lint": "eslint \"src/**/*.{ts,tsx}\"",
         "typecheck": "tsc --noEmit"
     },
-    "peerDependencies": {
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0"
-    },
     "devDependencies": {
-        "@types/react": "^18.2.0",
-        "@types/react-dom": "^18.2.19",
-        "typescript": "^5.3.3"
+        "reactronx": "workspace:*"
     },
     "author": "Claudiu Nedelcu",
     "license": "BSD-2-Clause",

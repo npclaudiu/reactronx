@@ -63,10 +63,7 @@ export class WindowElement implements ElectronElement {
             this.window.setTitle(normalizedProps.title);
         }
         if (normalizedProps.width !== this.props.width || normalizedProps.height !== this.props.height) {
-            this.window.setSize(
-                normalizedProps.width ?? 800,
-                normalizedProps.height ?? 600,
-            );
+            this.window.setSize(normalizedProps.width ?? 800, normalizedProps.height ?? 600);
         }
 
         const nextOnCloseHandler = normalizedProps.onClose;

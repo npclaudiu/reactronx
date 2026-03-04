@@ -3,13 +3,17 @@ import path from "node:path";
 import { Command, InvalidOptionArgumentError } from "commander";
 import { loadReactronxConfig, DEFAULT_CONFIG_PATH } from "./config";
 import { runBuild } from "./build";
-import { BuildMode, DefineValue, ReactronxBuildConfig } from "./types";
+import { BuildMode, BuildProfile, DefineValue, LibraryTarget, ReactronxBuildConfig } from "./types";
 
 interface BuildCliOptions {
     config?: string;
+    profile?: BuildProfile;
     main?: string;
     preload?: string;
     renderer?: string;
+    entry?: string;
+    target?: LibraryTarget;
+    filename?: string;
     outDir?: string;
     mode?: BuildMode;
     sourcemap?: boolean;
@@ -19,6 +23,9 @@ interface BuildCliOptions {
     external: string[];
     clean: boolean;
     typecheck?: boolean;
+    declarations?: boolean;
+    tsconfig?: string;
+    externalizeDependencies: boolean;
 }
 
 type CommanderValueSource = "default" | "config" | "env" | "cli" | "implied" | undefined;
@@ -27,12 +34,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 
+function isOptionExplicit(source: CommanderValueSource): boolean {
+    return source === "cli" || source === "env" || source === "implied";
+}
+
 function parseBuildMode(value: string): BuildMode {
     if (value === "production" || value === "development") {
         return value;
     }
 
     throw new InvalidOptionArgumentError(`Invalid mode '${value}'. Use 'production' or 'development'.`);
+}
+
+function parseBuildProfile(value: string): BuildProfile {
+    if (value === "executable" || value === "library") {
+        return value;
+    }
+
+    throw new InvalidOptionArgumentError(`Invalid profile '${value}'. Use 'executable' or 'library'.`);
+}
+
+function parseLibraryTarget(value: string): LibraryTarget {
+    const supportedTargets: LibraryTarget[] = ["node", "web", "electron-main", "electron-preload", "electron-renderer"];
+
+    if (supportedTargets.includes(value as LibraryTarget)) {
+        return value as LibraryTarget;
+    }
+
+    throw new InvalidOptionArgumentError(
+        `Invalid library target '${value}'. Use one of: ${supportedTargets.join(", ")}.`,
+    );
 }
 
 function collectRepeatedValues(value: string, previous: string[]): string[] {
@@ -66,7 +97,12 @@ function parseDefineLiteral(rawValue: string): DefineValue {
     ) {
         try {
             const parsed = JSON.parse(trimmedValue) as unknown;
-            if (typeof parsed === "string" || typeof parsed === "number" || typeof parsed === "boolean" || parsed === null) {
+            if (
+                typeof parsed === "string" ||
+                typeof parsed === "number" ||
+                typeof parsed === "boolean" ||
+                parsed === null
+            ) {
                 return parsed;
             }
         } catch {
@@ -99,11 +135,28 @@ function getBooleanOptionValue(
     configValue: boolean | undefined,
     fallbackValue: boolean,
 ): boolean {
-    if (source !== "default") {
+    if (isOptionExplicit(source)) {
         return Boolean(cliValue);
     }
 
     if (typeof configValue === "boolean") {
+        return configValue;
+    }
+
+    return fallbackValue;
+}
+
+function getStringOptionValue(
+    cliValue: string | undefined,
+    source: CommanderValueSource,
+    configValue: string | undefined,
+    fallbackValue: string,
+): string {
+    if (isOptionExplicit(source) && cliValue) {
+        return cliValue;
+    }
+
+    if (typeof configValue === "string" && configValue.length > 0) {
         return configValue;
     }
 
@@ -136,12 +189,40 @@ function mergeDefineValues(configBuild: ReactronxBuildConfig, cliDefineEntries: 
     return mergedValues;
 }
 
-function resolveMode(options: BuildCliOptions, buildConfig: ReactronxBuildConfig, source: CommanderValueSource): BuildMode {
-    if (source !== "default" && options.mode) {
+function resolveMode(
+    options: BuildCliOptions,
+    buildConfig: ReactronxBuildConfig,
+    source: CommanderValueSource,
+): BuildMode {
+    if (isOptionExplicit(source) && options.mode) {
         return options.mode;
     }
 
     return buildConfig.mode ?? "production";
+}
+
+function resolveProfile(
+    options: BuildCliOptions,
+    buildConfig: ReactronxBuildConfig,
+    source: CommanderValueSource,
+): BuildProfile {
+    if (isOptionExplicit(source) && options.profile) {
+        return options.profile;
+    }
+
+    return buildConfig.profile ?? "executable";
+}
+
+function resolveLibraryTarget(
+    options: BuildCliOptions,
+    buildConfig: ReactronxBuildConfig,
+    source: CommanderValueSource,
+): LibraryTarget {
+    if (isOptionExplicit(source) && options.target) {
+        return options.target;
+    }
+
+    return buildConfig.target ?? "node";
 }
 
 function readPackageVersion(): string {
@@ -164,15 +245,25 @@ function readPackageVersion(): string {
 export async function runCli(argv: string[]): Promise<void> {
     const program = new Command();
 
-    program.name("reactronx").description("Build Electron applications with Rspack + SWC.").version(readPackageVersion());
+    program
+        .name("reactronx")
+        .description("Build Electron applications and libraries with Rspack/SWC and TypeScript.")
+        .version(readPackageVersion());
 
     program
         .command("build")
-        .description("Build Electron main/preload/renderer entrypoints.")
+        .description("Build executable Electron targets or library bundles.")
         .option("-c, --config <path>", "Path to reactronx config file.", DEFAULT_CONFIG_PATH)
-        .option("--main <path>", "Main process entry file.")
-        .option("--preload <path>", "Preload process entry file.")
-        .option("--renderer <path>", "Renderer entry file.")
+        .option("--profile <profile>", "Build profile: executable or library.", parseBuildProfile, "executable")
+        .option("--main <path>", "Main process entry file (executable profile).")
+        .option("--preload <path>", "Preload process entry file (executable profile).")
+        .option("--renderer <path>", "Renderer entry file (executable profile).")
+        .option("--entry <path>", "Library entry file (library profile).")
+        .option("--target <target>", "Library target.", parseLibraryTarget)
+        .option("--filename <name>", "Library output filename.")
+        .option("--declarations", "Emit .d.ts files using TypeScript (library profile).")
+        .option("--tsconfig <path>", "tsconfig used for typecheck/declaration emission.")
+        .option("--no-externalize-dependencies", "Do not auto-externalize package dependencies (library profile).")
         .option("--outDir <path>", "Output directory.", "dist")
         .option("--mode <mode>", "Build mode: production or development.", parseBuildMode, "production")
         .option("--sourcemap", "Generate source maps.")
@@ -181,28 +272,33 @@ export async function runCli(argv: string[]): Promise<void> {
         .option("--define <key=value>", "Define replacement values.", collectRepeatedValues, [])
         .option("--external <pkg>", "Mark package as external (repeatable).", collectRepeatedValues, [])
         .option("--no-clean", "Do not clean outDir before building.")
-        .option("--typecheck", "Run tsc --noEmit before building.")
+        .option("--typecheck", "Run TypeScript typecheck before build (executable profile).")
         .action(async (options: BuildCliOptions, command: Command) => {
             try {
                 const cwd = process.cwd();
                 const configSource = command.getOptionValueSource("config") as CommanderValueSource;
-                const configPathArg = configSource === "default" ? undefined : options.config;
+                const configPathArg = isOptionExplicit(configSource) ? options.config : undefined;
                 const { config, configPath } = loadReactronxConfig(cwd, configPathArg);
                 const buildConfig = config.build ?? {};
+
+                const profile = resolveProfile(
+                    options,
+                    buildConfig,
+                    command.getOptionValueSource("profile") as CommanderValueSource,
+                );
 
                 const modeSource = command.getOptionValueSource("mode") as CommanderValueSource;
                 const mode = resolveMode(options, buildConfig, modeSource);
 
-                const main = options.main ?? buildConfig.main;
-                if (!main) {
-                    throw new Error(
-                        "Missing required main entry. Provide it via --main or in reactronx.config.ts under build.main.",
-                    );
-                }
-
-                const outDirSource = command.getOptionValueSource("outDir") as CommanderValueSource;
-                const outDirValue = outDirSource !== "default" ? options.outDir : buildConfig.outDir ?? "dist";
-                const outDir = path.resolve(cwd, outDirValue ?? "dist");
+                const outDir = path.resolve(
+                    cwd,
+                    getStringOptionValue(
+                        options.outDir,
+                        command.getOptionValueSource("outDir") as CommanderValueSource,
+                        buildConfig.outDir,
+                        "dist",
+                    ),
+                );
 
                 const sourcemap = getBooleanOptionValue(
                     options.sourcemap,
@@ -215,7 +311,7 @@ export async function runCli(argv: string[]): Promise<void> {
                     options.minify,
                     command.getOptionValueSource("minify") as CommanderValueSource,
                     buildConfig.minify,
-                    mode === "production",
+                    profile === "executable" ? mode === "production" : false,
                 );
 
                 const analyze = getBooleanOptionValue(
@@ -232,8 +328,22 @@ export async function runCli(argv: string[]): Promise<void> {
                     true,
                 );
 
-                const preload = options.preload ?? buildConfig.preload;
-                const renderer = options.renderer ?? buildConfig.renderer;
+                const typecheck = getBooleanOptionValue(
+                    options.typecheck,
+                    command.getOptionValueSource("typecheck") as CommanderValueSource,
+                    buildConfig.typecheck,
+                    false,
+                );
+
+                const tsconfigPath = path.resolve(
+                    cwd,
+                    getStringOptionValue(
+                        options.tsconfig,
+                        command.getOptionValueSource("tsconfig") as CommanderValueSource,
+                        buildConfig.tsconfig,
+                        "tsconfig.json",
+                    ),
+                );
 
                 const external = [...(buildConfig.external ?? []), ...options.external];
                 const defineValues = mergeDefineValues(buildConfig, options.define);
@@ -242,21 +352,86 @@ export async function runCli(argv: string[]): Promise<void> {
                     console.log(`Loaded config: ${configPath}`);
                 }
 
-                await runBuild({
-                    cwd,
-                    mode,
-                    outDir,
-                    clean,
-                    sourcemap,
-                    minify,
-                    analyze,
-                    typecheck: Boolean(options.typecheck),
-                    define: defineValues,
-                    external,
-                    main,
-                    preload,
-                    renderer,
-                });
+                if (profile === "executable") {
+                    const main = options.main ?? buildConfig.main;
+                    if (!main) {
+                        throw new Error(
+                            "Missing required main entry. Provide it via --main or in reactronx.config.ts under build.main.",
+                        );
+                    }
+
+                    await runBuild({
+                        profile,
+                        cwd,
+                        mode,
+                        outDir,
+                        clean,
+                        sourcemap,
+                        minify,
+                        analyze,
+                        define: defineValues,
+                        external,
+                        typecheck,
+                        tsconfigPath,
+                        main,
+                        preload: options.preload ?? buildConfig.preload,
+                        renderer: options.renderer ?? buildConfig.renderer,
+                    });
+                } else {
+                    const entry = options.entry ?? buildConfig.entry;
+                    if (!entry) {
+                        throw new Error(
+                            "Missing required library entry. Provide it via --entry or in reactronx.config.ts under build.entry.",
+                        );
+                    }
+
+                    const externalizeDependencies = getBooleanOptionValue(
+                        options.externalizeDependencies,
+                        command.getOptionValueSource("externalizeDependencies") as CommanderValueSource,
+                        buildConfig.externalizeDependencies,
+                        true,
+                    );
+
+                    const declarations = getBooleanOptionValue(
+                        options.declarations,
+                        command.getOptionValueSource("declarations") as CommanderValueSource,
+                        buildConfig.declarations,
+                        true,
+                    );
+
+                    const libraryTarget = resolveLibraryTarget(
+                        options,
+                        buildConfig,
+                        command.getOptionValueSource("target") as CommanderValueSource,
+                    );
+
+                    const filename = getStringOptionValue(
+                        options.filename,
+                        command.getOptionValueSource("filename") as CommanderValueSource,
+                        buildConfig.filename,
+                        "index.js",
+                    );
+
+                    await runBuild({
+                        profile,
+                        cwd,
+                        mode,
+                        outDir,
+                        clean,
+                        sourcemap,
+                        minify,
+                        analyze,
+                        define: defineValues,
+                        external,
+                        typecheck,
+                        tsconfigPath,
+                        entry,
+                        target: libraryTarget,
+                        filename,
+                        declarations,
+                        externalizeDependencies,
+                    });
+                }
 
                 console.log(`Build completed in ${outDir}`);
             } catch (error) {

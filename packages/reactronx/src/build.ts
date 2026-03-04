@@ -1,18 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
-import { builtinModules } from "node:module";
+import { builtinModules, createRequire } from "node:module";
 import { DefinePlugin, rspack, type Configuration, type Stats } from "@rspack/core";
-import { BuildMode, DefineValue } from "./types";
+import type * as TypeScript from "typescript";
+import { BuildMode, BuildProfile, DefineValue, LibraryTarget } from "./types";
 
-type BuildTargetName = "main" | "preload" | "renderer";
+type TypeScriptModule = typeof import("typescript");
+type TypeScriptRuntimeSource = "workspace" | "bundled";
+type BuildStatsName = "main" | "preload" | "renderer";
 
-interface BuildTarget {
-    name: BuildTargetName;
-    entry: string;
-    target: "electron-main" | "electron-preload" | "electron-renderer";
-    filename: string;
-    externalizeNodeModules: boolean;
+interface TypeScriptRuntime {
+    ts: TypeScriptModule;
+    source: TypeScriptRuntimeSource;
+    resolvedPath: string;
 }
 
 interface ExternalResolverData {
@@ -26,7 +26,8 @@ interface ClosableCompiler {
     close(callback: (error?: Error | null) => void): void;
 }
 
-export interface RunBuildOptions {
+interface BaseRunBuildOptions {
+    profile: BuildProfile;
     cwd: string;
     mode: BuildMode;
     outDir: string;
@@ -34,12 +35,38 @@ export interface RunBuildOptions {
     sourcemap: boolean;
     minify: boolean;
     analyze: boolean;
-    typecheck: boolean;
     define: Record<string, DefineValue>;
     external: string[];
+    typecheck: boolean;
+    tsconfigPath: string;
+}
+
+interface ExecutableRunBuildOptions extends BaseRunBuildOptions {
+    profile: "executable";
     main: string;
     preload?: string;
     renderer?: string;
+}
+
+interface LibraryRunBuildOptions extends BaseRunBuildOptions {
+    profile: "library";
+    entry: string;
+    target: LibraryTarget;
+    filename: string;
+    declarations: boolean;
+    externalizeDependencies: boolean;
+}
+
+export type RunBuildOptions = ExecutableRunBuildOptions | LibraryRunBuildOptions;
+
+interface RspackBuildJob {
+    name: BuildStatsName;
+    entry: string;
+    target: LibraryTarget;
+    filename: string;
+    externalizeNodeModules: boolean;
+    externals: Set<string>;
+    emitCommonJsLibrary: boolean;
 }
 
 const nodeBuiltinModules = new Set<string>([
@@ -132,6 +159,7 @@ function closeCompiler(compiler: unknown): Promise<void> {
 
 async function runRspackBuild(config: Configuration): Promise<Stats> {
     const compiler = rspack(config);
+
     return new Promise((resolve, reject) => {
         compiler.run(async (error, stats) => {
             try {
@@ -161,13 +189,13 @@ async function runRspackBuild(config: Configuration): Promise<Stats> {
     });
 }
 
-function ensureEntryExists(targetName: BuildTargetName, absolutePath: string): void {
+function ensureEntryExists(entryLabel: string, absolutePath: string): void {
     if (!fs.existsSync(absolutePath)) {
-        throw new Error(`Missing ${targetName} entry file: ${absolutePath}`);
+        throw new Error(`Missing ${entryLabel} entry file: ${absolutePath}`);
     }
 }
 
-async function writeAnalysis(target: BuildTargetName, outDir: string, stats: Stats): Promise<void> {
+async function writeAnalysis(target: BuildStatsName, outDir: string, stats: Stats): Promise<void> {
     const statsDirectory = path.join(outDir, ".reactronx-stats");
     await fs.promises.mkdir(statsDirectory, { recursive: true });
 
@@ -186,26 +214,21 @@ async function writeAnalysis(target: BuildTargetName, outDir: string, stats: Sta
     await fs.promises.writeFile(outputPath, `${JSON.stringify(serializedStats, null, 2)}\n`, "utf8");
 }
 
-function createRspackConfig(
-    target: BuildTarget,
-    options: RunBuildOptions,
-    shouldClean: boolean,
-    extraExternals: Set<string>,
-): Configuration {
+function createRspackConfig(job: RspackBuildJob, options: BaseRunBuildOptions, shouldClean: boolean): Configuration {
     const defineValues = serializeDefineValues(options.define);
-    const plugins =
-        Object.keys(defineValues).length > 0 ? [new DefinePlugin(defineValues)] : [];
+    const plugins = Object.keys(defineValues).length > 0 ? [new DefinePlugin(defineValues)] : [];
 
     return {
         context: options.cwd,
         mode: options.mode,
-        target: target.target,
+        target: job.target,
         entry: {
-            [target.name]: target.entry,
+            [job.name]: job.entry,
         },
         output: {
             path: options.outDir,
-            filename: target.filename,
+            filename: job.filename,
+            library: job.emitCommonJsLibrary ? { type: "commonjs2" } : undefined,
             clean: shouldClean,
         },
         resolve: {
@@ -261,7 +284,9 @@ function createRspackConfig(
             ],
         },
         externalsType: "commonjs",
-        externals: [createExternalResolver(extraExternals, target.externalizeNodeModules)] as unknown as Configuration["externals"],
+        externals: [
+            createExternalResolver(job.externals, job.externalizeNodeModules),
+        ] as unknown as Configuration["externals"],
         optimization: {
             minimize: options.minify,
         },
@@ -270,87 +295,287 @@ function createRspackConfig(
     };
 }
 
-function createBuildTargets(options: RunBuildOptions): BuildTarget[] {
-    const targets: BuildTarget[] = [
+function createExecutableBuildJobs(options: ExecutableRunBuildOptions): RspackBuildJob[] {
+    const sharedExternals = new Set<string>(options.external);
+
+    const jobs: RspackBuildJob[] = [
         {
             name: "main",
             entry: path.resolve(options.cwd, options.main),
             target: "electron-main",
             filename: "main.js",
             externalizeNodeModules: true,
+            externals: sharedExternals,
+            emitCommonJsLibrary: false,
         },
     ];
 
     if (options.preload) {
-        targets.push({
+        jobs.push({
             name: "preload",
             entry: path.resolve(options.cwd, options.preload),
             target: "electron-preload",
             filename: "preload.js",
-            externalizeNodeModules: true,
+            // Bundle preload dependencies so sandboxed preload scripts don't rely on Node module resolution.
+            externalizeNodeModules: false,
+            externals: sharedExternals,
+            emitCommonJsLibrary: false,
         });
     }
 
     if (options.renderer) {
-        targets.push({
+        jobs.push({
             name: "renderer",
             entry: path.resolve(options.cwd, options.renderer),
             target: "electron-renderer",
             filename: "renderer.js",
             externalizeNodeModules: false,
+            externals: sharedExternals,
+            emitCommonJsLibrary: false,
         });
     }
 
-    return targets;
+    return jobs;
 }
 
-function runTypecheck(cwd: string): Promise<void> {
-    const binary = process.platform === "win32" ? "tsc.cmd" : "tsc";
-    return new Promise((resolve, reject) => {
-        const child = spawn(binary, ["--noEmit"], {
-            cwd,
-            stdio: "inherit",
-        });
+function resolveTypeScriptRuntime(cwd: string): TypeScriptRuntime {
+    const workspaceRequire = createRequire(path.join(cwd, "package.json"));
+    try {
+        const resolvedPath = workspaceRequire.resolve("typescript");
+        const ts = workspaceRequire(resolvedPath) as TypeScriptModule;
+        return {
+            ts,
+            source: "workspace",
+            resolvedPath,
+        };
+    } catch {
+        // fall through to bundled resolution
+    }
 
-        child.on("error", (error) => {
-            reject(error);
-        });
+    const bundledRequire = createRequire(__filename);
+    try {
+        const resolvedPath = bundledRequire.resolve("typescript");
+        const ts = bundledRequire(resolvedPath) as TypeScriptModule;
+        return {
+            ts,
+            source: "bundled",
+            resolvedPath,
+        };
+    } catch {
+        throw new Error(
+            "TypeScript runtime is unavailable. Install 'typescript' in your project or use a reactronx version that bundles it.",
+        );
+    }
+}
 
-        child.on("exit", (exitCode) => {
-            if (exitCode === 0) {
-                resolve();
-                return;
-            }
-            reject(new Error(`Typecheck failed with exit code ${exitCode ?? "unknown"}.`));
-        });
+function formatTypeScriptDiagnostics(ts: TypeScriptModule, diagnostics: readonly TypeScript.Diagnostic[]): string {
+    if (diagnostics.length === 0) {
+        return "";
+    }
+
+    const host: TypeScript.FormatDiagnosticsHost = {
+        getCanonicalFileName: (fileName) => (ts.sys.useCaseSensitiveFileNames ? fileName : fileName.toLowerCase()),
+        getCurrentDirectory: ts.sys.getCurrentDirectory,
+        getNewLine: () => ts.sys.newLine,
+    };
+
+    return ts.formatDiagnosticsWithColorAndContext(diagnostics, host);
+}
+
+function loadTsConfig(
+    ts: TypeScriptModule,
+    cwd: string,
+    tsconfigPath: string,
+    overrides: TypeScript.CompilerOptions,
+): TypeScript.ParsedCommandLine {
+    const absoluteTsconfigPath = path.resolve(cwd, tsconfigPath);
+    if (!fs.existsSync(absoluteTsconfigPath)) {
+        throw new Error(`tsconfig file not found: ${absoluteTsconfigPath}`);
+    }
+
+    const configFileResult = ts.readConfigFile(absoluteTsconfigPath, ts.sys.readFile);
+    if (configFileResult.error) {
+        throw new Error(formatTypeScriptDiagnostics(ts, [configFileResult.error]));
+    }
+
+    const parsed = ts.parseJsonConfigFileContent(
+        configFileResult.config,
+        ts.sys,
+        path.dirname(absoluteTsconfigPath),
+        overrides,
+        absoluteTsconfigPath,
+    );
+
+    if (parsed.errors.length > 0) {
+        throw new Error(formatTypeScriptDiagnostics(ts, parsed.errors));
+    }
+
+    return parsed;
+}
+
+function runTypecheck(runtime: TypeScriptRuntime, cwd: string, tsconfigPath: string): void {
+    const parsed = loadTsConfig(runtime.ts, cwd, tsconfigPath, {
+        noEmit: true,
     });
+
+    const program = runtime.ts.createProgram({
+        rootNames: parsed.fileNames,
+        options: parsed.options,
+        projectReferences: parsed.projectReferences,
+    });
+
+    const diagnostics = runtime.ts.getPreEmitDiagnostics(program);
+    if (diagnostics.length > 0) {
+        throw new Error(formatTypeScriptDiagnostics(runtime.ts, diagnostics));
+    }
+}
+
+function getLibraryModuleKind(ts: TypeScriptModule, target: LibraryTarget): TypeScript.ModuleKind {
+    switch (target) {
+        case "node":
+        case "electron-main":
+        case "electron-preload":
+            return ts.ModuleKind.CommonJS;
+        case "web":
+        case "electron-renderer":
+            return ts.ModuleKind.ESNext;
+    }
+}
+
+function warnForIgnoredLibraryOptions(options: LibraryRunBuildOptions): void {
+    const ignoredFlags: string[] = [];
+
+    if (options.minify) {
+        ignoredFlags.push("--minify");
+    }
+
+    if (options.analyze) {
+        ignoredFlags.push("--analyze");
+    }
+
+    if (Object.keys(options.define).length > 0) {
+        ignoredFlags.push("--define");
+    }
+
+    if (options.external.length > 0) {
+        ignoredFlags.push("--external");
+    }
+
+    if (!options.externalizeDependencies) {
+        ignoredFlags.push("--no-externalize-dependencies");
+    }
+
+    if (ignoredFlags.length === 0) {
+        return;
+    }
+
+    console.warn(`Library builds use TypeScript emit; ignoring ${ignoredFlags.join(", ")}.`);
+}
+
+function runTypeScriptLibraryBuild(runtime: TypeScriptRuntime, options: LibraryRunBuildOptions): void {
+    if (options.clean) {
+        fs.rmSync(options.outDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(options.outDir, { recursive: true });
+
+    const absoluteEntryPath = path.resolve(options.cwd, options.entry);
+    ensureEntryExists("library", absoluteEntryPath);
+
+    warnForIgnoredLibraryOptions(options);
+
+    const parsed = loadTsConfig(runtime.ts, options.cwd, options.tsconfigPath, {
+        outDir: options.outDir,
+        noEmit: false,
+        declaration: options.declarations,
+        emitDeclarationOnly: false,
+        sourceMap: options.sourcemap,
+        module: getLibraryModuleKind(runtime.ts, options.target),
+        target: runtime.ts.ScriptTarget.ES2022,
+        noEmitOnError: options.typecheck,
+    });
+
+    const normalizePath = (filePath: string) => {
+        const absolutePath = path.resolve(filePath);
+        return runtime.ts.sys.useCaseSensitiveFileNames ? absolutePath : absolutePath.toLowerCase();
+    };
+
+    const includedSourceFiles = new Set(parsed.fileNames.map(normalizePath));
+    if (!includedSourceFiles.has(normalizePath(absoluteEntryPath))) {
+        throw new Error(
+            `Library entry '${absoluteEntryPath}' is not included by tsconfig '${path.resolve(options.cwd, options.tsconfigPath)}'.`,
+        );
+    }
+
+    const program = runtime.ts.createProgram({
+        rootNames: parsed.fileNames,
+        options: parsed.options,
+        projectReferences: parsed.projectReferences,
+    });
+
+    const preEmitDiagnostics = options.typecheck ? runtime.ts.getPreEmitDiagnostics(program) : [];
+    const emitResult = program.emit();
+    const allDiagnostics = [...preEmitDiagnostics, ...emitResult.diagnostics];
+
+    if (allDiagnostics.length > 0) {
+        throw new Error(formatTypeScriptDiagnostics(runtime.ts, allDiagnostics));
+    }
+
+    const outputFileNames = runtime.ts.getOutputFileNames(
+        parsed,
+        absoluteEntryPath,
+        !runtime.ts.sys.useCaseSensitiveFileNames,
+    );
+    const emittedEntryJs = outputFileNames.find((outputPath) => outputPath.endsWith(".js"));
+
+    if (!emittedEntryJs) {
+        throw new Error(`TypeScript did not emit a JavaScript output for entry '${absoluteEntryPath}'.`);
+    }
+
+    const expectedEntryJsPath = path.resolve(options.outDir, options.filename);
+    const actualEntryJsPath = path.resolve(emittedEntryJs);
+
+    if (expectedEntryJsPath !== actualEntryJsPath) {
+        throw new Error(
+            `Library filename '${options.filename}' is incompatible with TypeScript output '${path.relative(
+                options.outDir,
+                actualEntryJsPath,
+            )}'. Use a matching filename or adjust the library entry path.`,
+        );
+    }
 }
 
 export async function runBuild(options: RunBuildOptions): Promise<void> {
-    const targets = createBuildTargets(options);
-    for (const target of targets) {
-        ensureEntryExists(target.name, target.entry);
-    }
+    if (options.profile === "executable") {
+        await fs.promises.mkdir(options.outDir, { recursive: true });
 
-    await fs.promises.mkdir(options.outDir, { recursive: true });
-
-    if (options.typecheck) {
-        console.log("Running typecheck...");
-        await runTypecheck(options.cwd);
-    }
-
-    const extraExternals = new Set<string>(options.external);
-    let shouldClean = options.clean;
-
-    for (const target of targets) {
-        console.log(`Building ${target.name} (${target.entry})...`);
-        const config = createRspackConfig(target, options, shouldClean, extraExternals);
-        const stats = await runRspackBuild(config);
-
-        if (options.analyze) {
-            await writeAnalysis(target.name, options.outDir, stats);
+        if (options.typecheck) {
+            const runtime = resolveTypeScriptRuntime(options.cwd);
+            console.log(`Running typecheck with TypeScript (${runtime.source}) from ${runtime.resolvedPath}...`);
+            runTypecheck(runtime, options.cwd, options.tsconfigPath);
         }
 
-        shouldClean = false;
+        const buildJobs = createExecutableBuildJobs(options);
+
+        for (const job of buildJobs) {
+            ensureEntryExists(job.name, job.entry);
+        }
+
+        let shouldClean = options.clean;
+        for (const job of buildJobs) {
+            console.log(`Building ${job.name} (${job.entry})...`);
+            const stats = await runRspackBuild(createRspackConfig(job, options, shouldClean));
+
+            if (options.analyze) {
+                await writeAnalysis(job.name, options.outDir, stats);
+            }
+
+            shouldClean = false;
+        }
+
+        return;
     }
+
+    const runtime = resolveTypeScriptRuntime(options.cwd);
+    console.log(`Building library with TypeScript (${runtime.source}) from ${runtime.resolvedPath}...`);
+    runTypeScriptLibraryBuild(runtime, options);
 }
