@@ -1,0 +1,23 @@
+{
+    "packages": {
+        "packages/host": {
+            "release-type": "node",
+            "package-name": "@reactronx/host",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
+        },
+        "packages/guest": {
+            "release-type": "node",
+            "package-name": "@reactronx/guest",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true
+        }
+    },
+    "plugins": [
+        {
+            "type": "linked-versions",
+            "groupName": "reactronx",
+            "components": ["@reactronx/host", "@reactronx/guest"]
+        }
+    ]
+}
