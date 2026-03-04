@@ -2,13 +2,16 @@
     "files": [],
     "references": [
         {
-            "path": "./packages/react-electron"
+            "path": "./packages/reactronx-react-electron"
         },
         {
-            "path": "./packages/renderer"
+            "path": "./packages/reactronx-renderer"
         },
         {
-            "path": "./packages/preload"
+            "path": "./packages/reactronx-preload"
+        },
+        {
+            "path": "./packages/reactronx"
         }
     ]
 }

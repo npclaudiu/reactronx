@@ -1,4 +1,32 @@
 {
     "name": "reactronx",
-    "version": "0.0.0"
+    "version": "0.1.0",
+    "description": "CLI for building Electron apps powered by Reactronx",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "bin": {
+        "reactronx": "dist/bin.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "lint": "eslint \"src/**/*.{ts,tsx}\"",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@rspack/core": "^1.5.4",
+        "commander": "^14.0.2",
+        "jiti": "^2.6.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.24",
+        "typescript": "^5.3.3"
+    },
+    "author": "Claudiu Nedelcu",
+    "license": "BSD-2-Clause",
+    "publishConfig": {
+        "access": "public"
+    }
 }
