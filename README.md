@@ -5,6 +5,95 @@
 This is a PNPM monorepo containing the core packages for the `reactronx` ecosystem. It enables developers to build
 Electron applications declaratively by backing React components with Electron primitives.
 
+## High-Level Usage Guide
+
+To use `reactronx` in your Electron application, you will need to orchestrate the three core packages across Electron's
+distinct process boundaries.
+
+1. **Main Process (`@reactronx/host`)**: In your Electron entry point (typically `main.js` or `index.ts`), you will
+   initialize `@reactronx/host`. Instead of imperatively creating `new BrowserWindow()` instances, you will write
+   standard React code that orchestrates your Electron primitives and use the custom reconciler to render them.
+
+2. **Preload Script (`@reactronx/guest-preload`)**: Inject `@reactronx/guest-preload` into your `preload.js` script.
+   This package will execute within the context isolation boundary, securely bridging the IPC channels required for the
+   renderer to communicate with the host reconciler.
+
+3. **Renderer Process (`@reactronx/guest`)**: In your web bundles (e.g., your Vite or Webpack frontend), import and
+   initialize `@reactronx/guest`. This acts as the peer React tree that communicates with the `host` over the injected
+   IPC bridge, completing the loop.
+
+### Example: Managing Electron with React
+
+Instead of writing imperative EventEmitters and arrays to track open windows, `@reactronx/host` allows you to define
+your desktop application layout cleanly, just like a web page:
+
+```tsx
+import React, { useState } from "react";
+import { render } from "@reactronx/host";
+
+function App() {
+    const [preferencesOpen, setPreferencesOpen] = useState(false);
+
+    return (
+        <app>
+            <menu>
+                <menuItem label="File">
+                    <menuItem label="Preferences" onClick={() => setPreferencesOpen(true)} />
+                    <menuItem label="Quit" role="quit" />
+                </menuItem>
+            </menu>
+
+            {/* The Main Application Window */}
+            <window title="My Reactronx App" width={800} height={600} onClose={() => console.log("Main window closed")}>
+                <webContents url="http://localhost:3000" />
+            </window>
+
+            {/* Conditionally render a Preferences Window */}
+            {preferencesOpen && (
+                <window title="Preferences" width={400} height={300} onClose={() => setPreferencesOpen(false)}>
+                    <webContents url="http://localhost:3000/preferences" />
+                </window>
+            )}
+        </app>
+    );
+}
+
+// Render the application to the Electron environment
+render(<App />);
+```
+
+## Architecture Deep Dive
+
+The architecture of `reactronx` intrinsically reflects Electron's multi-process model, relying heavily on React
+Reconciler to abstract away the asynchronous and complex API surface of native desktop applications.
+
+### The Host Reconciler
+
+Historically, building Electron apps means maintaining messy, imperative state machines to track when windows are
+opened, closed, or moved. `@reactronx/host` solves this by providing a
+[React Custom Reconciler](https://github.com/facebook/react/tree/main/packages/react-reconciler).
+
+When you render a `<window>` or `<menu>` component, the reconciler translates those React fiber nodes into actual
+Electron API calls. Because the Main Process has direct, synchronous access to the underlying OS windowing systems, this
+is the perfect environment for a React Reconciler to manipulate tree state efficiently.
+
+### The IPC Bridge
+
+Because Electron enforces Context Isolation for security, the web pages (Renderer Process) cannot require Node.js or
+Electron native modules. Therefore, if a user clicks a button in the web page that needs to resize the window, that
+command must cross the process boundary.
+
+`@reactronx/guest-preload` serves as this secure conduit. It utilizes `contextBridge.exposeInMainWorld` to attach
+specific, heavily-scrutinized IPC event emitters and listeners to the `window` object of the web page.
+
+### The Guest Renderer
+
+`@reactronx/guest` is a lightweight abstraction that sits in the Renderer process alongside standard `react-dom`. It is
+fundamentally responsible for hooking into the APIs exposed by the preload script, allowing the frontend React
+components to trigger effects or query states managed by the host reconciler in the Main Process.
+
+---
+
 ## Packages
 
 ### `@reactronx/host`
@@ -25,7 +114,7 @@ bridges) and is responsible for securely exposing APIs to the `@reactronx/guest`
 
 ## Development
 
-This project uses `pnpm` as its package manager and `tsup` for bundling.
+This project uses `pnpm` as its package manager and `webpack` for bundling.
 
 ### Setup
 
