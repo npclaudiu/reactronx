@@ -1,0 +1,11 @@
+{
+    "files": [],
+    "references": [
+        {
+            "path": "./packages/host"
+        },
+        {
+            "path": "./packages/guest"
+        }
+    ]
+}

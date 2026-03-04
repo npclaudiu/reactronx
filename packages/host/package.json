@@ -1,0 +1,32 @@
+{
+    "name": "@reactronx/host",
+    "version": "0.1.0",
+    "description": "React-backed Electron reconciler resources (Main Process)",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "lint": "eslint \"src/**/*.{ts,tsx}\"",
+        "typecheck": "tsc --noEmit"
+    },
+    "peerDependencies": {
+        "electron": ">=28.0.0",
+        "react": "^18.2.0"
+    },
+    "dependencies": {
+        "react-reconciler": "^0.29.0"
+    },
+    "devDependencies": {
+        "@types/react": "^18.2.0",
+        "@types/react-reconciler": "^0.28.8",
+        "tsup": "^8.0.2",
+        "typescript": "^5.3.3"
+    },
+    "author": "Claudiu",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    }
+}

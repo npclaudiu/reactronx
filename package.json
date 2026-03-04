@@ -1,0 +1,37 @@
+{
+    "name": "reactronx-monorepo",
+    "version": "0.0.0",
+    "private": true,
+    "description": "Monorepo for React-backed Electron reconciler resources",
+    "workspaces": [
+        "packages/*"
+    ],
+    "engines": {
+        "node": ">=20.0.0",
+        "pnpm": ">=10.0.0"
+    },
+    "packageManager": "pnpm@10.30.3",
+    "author": "Claudiu Nedelcu",
+    "license": "BSD-2-Clause",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/npclaudiu/reactronx.git"
+    },
+    "scripts": {
+        "build": "pnpm -r run build",
+        "lint": "pnpm -r run lint",
+        "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+        "typecheck": "tsc -b"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^20.11.24",
+        "@typescript-eslint/eslint-plugin": "^8.56.1",
+        "@typescript-eslint/parser": "^8.56.1",
+        "eslint": "^10.0.2",
+        "globals": "^17.4.0",
+        "prettier": "^3.2.5",
+        "typescript": "^5.3.3",
+        "typescript-eslint": "^8.56.1"
+    }
+}

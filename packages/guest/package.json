@@ -1,0 +1,30 @@
+{
+    "name": "@reactronx/guest",
+    "version": "0.1.0",
+    "description": "React-backed Electron reconciler resources (Renderer Process)",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "lint": "eslint \"src/**/*.{ts,tsx}\"",
+        "typecheck": "tsc --noEmit"
+    },
+    "peerDependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "@types/react": "^18.2.0",
+        "@types/react-dom": "^18.2.19",
+        "tsup": "^8.0.2",
+        "typescript": "^5.3.3"
+    },
+    "author": "Claudiu Nedelcu",
+    "license": "BSD-2-Clause",
+    "publishConfig": {
+        "access": "public"
+    }
+}
