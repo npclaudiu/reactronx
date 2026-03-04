@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # Enable version updates for the PNPM workspace
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Optional: Group all dependency updates into a single PR to reduce noise
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    # Configure the commit message prefix to align with Conventional Commits
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Enable version updates for GitHub Actions workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Group all actions updates into a single PR
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
