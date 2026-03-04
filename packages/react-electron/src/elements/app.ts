@@ -1,12 +1,25 @@
 import { app } from "electron";
 import { ElectronElement } from "./types";
 
+interface AppElementProps extends Record<string, unknown> {
+    onWindowAllClosed?: () => void;
+}
+
 export class AppElement implements ElectronElement {
     public type = "app";
-    public props: Record<string, unknown>;
+    public props: AppElementProps;
 
-    constructor(props: Record<string, unknown>) {
+    private readonly defaultWindowAllClosedHandler = () => {
+        if (process.platform !== "darwin") {
+            app.quit();
+        }
+    };
+    private windowAllClosedHandler: () => void;
+
+    constructor(props: AppElementProps) {
         this.props = props;
+        this.windowAllClosedHandler = this.resolveWindowAllClosedHandler(props);
+        app.on("window-all-closed", this.windowAllClosedHandler);
     }
 
     appendChild(_child: ElectronElement) {
@@ -17,15 +30,21 @@ export class AppElement implements ElectronElement {
         // Handle child removal
     }
 
-    updateProps(newProps: Record<string, unknown>) {
-        this.props = newProps;
-        // Bind app lifecycle events if passed (e.g., onReady, onWindowAllClosed)
-        if (typeof this.props.onWindowAllClosed === "function") {
-            app.on("window-all-closed", this.props.onWindowAllClosed as () => void);
-        } else {
-            app.on("window-all-closed", () => {
-                if (process.platform !== "darwin") app.quit();
-            });
+    updateProps(newProps: AppElementProps) {
+        const nextHandler = this.resolveWindowAllClosedHandler(newProps);
+        if (this.windowAllClosedHandler !== nextHandler) {
+            app.removeListener("window-all-closed", this.windowAllClosedHandler);
+            this.windowAllClosedHandler = nextHandler;
+            app.on("window-all-closed", this.windowAllClosedHandler);
         }
+        this.props = newProps;
+    }
+
+    destroy() {
+        app.removeListener("window-all-closed", this.windowAllClosedHandler);
+    }
+
+    private resolveWindowAllClosedHandler(props: AppElementProps): () => void {
+        return props.onWindowAllClosed ?? this.defaultWindowAllClosedHandler;
     }
 }

@@ -87,6 +87,9 @@ const hostConfig: ReactReconciler.HostConfig<
         if (child.destroy) {
             child.destroy();
         }
+        if (container.removeChild) {
+            container.removeChild(child);
+        }
     },
 
     commitUpdate(instance, updatePayload, type, prevProps, nextProps) {

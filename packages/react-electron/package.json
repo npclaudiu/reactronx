@@ -22,8 +22,8 @@
         "@types/react-reconciler": "^0.28.8",
         "typescript": "^5.3.3"
     },
-    "author": "Claudiu",
-    "license": "MIT",
+    "author": "Claudiu Nedelcu",
+    "license": "BSD-2-Clause",
     "publishConfig": {
         "access": "public"
     }
