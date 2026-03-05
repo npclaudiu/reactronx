@@ -51,6 +51,6 @@ function App() {
 render(<App />);
 ```
 
-## License
+## Copyright and License
 
-BSD-2-Clause
+Copyright © 2026 Claudiu Nedelcu. Licensed under the [2-Clause BSD License](LICENSE).
