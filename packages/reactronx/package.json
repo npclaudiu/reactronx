@@ -30,7 +30,7 @@
         }
     },
     "devDependencies": {
-        "@types/node": "^20.11.24"
+        "@types/node": "^25.3.3"
     },
     "author": "Claudiu Nedelcu",
     "license": "BSD-2-Clause",
