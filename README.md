@@ -1,17 +1,15 @@
-# reactronx
+# @reactronx/react-electron
 
-Reactronx is a set of packages for building Electron apps where React runs in the **Main Process** through a custom
-reconciler.
+`@reactronx/react-electron` is a library for building Electron apps where React runs in the **Main Process** through a
+custom reconciler.
+
+> Note: This is a project in an early stage of development. Things might break, change, or be removed at any time.
 
 ## High-Level Usage Guide
 
-To use `reactronx` in your Electron application, you will need to orchestrate the three core packages across Electron's
-distinct process boundaries.
-
-1. **Main Process (`@reactronx/react-electron`)**: In your Electron entry point (typically `main.js` or `index.ts`), you
-   will initialize `@reactronx/react-electron`. Instead of imperatively creating `new BrowserWindow()` instances, you
-   will write standard React code that orchestrates your Electron primitives and use the custom reconciler to render
-   them.
+To use the library in your Electron application, you will need to import `@reactronx/react-electron` in your Electron
+entry point. Instead of imperatively creating `new BrowserWindow()` instances, you will write standard React code that
+orchestrates your Electron primitives and use the custom reconciler to render them.
 
 ### Example: Managing Electron with React
 
@@ -52,10 +50,6 @@ function App() {
 // Render the application to the Electron environment
 render(<App />);
 ```
-
-## Packages
-
-- `@reactronx/react-electron`: Main Process reconciler for Electron resources (`<app>`, `<window>`, `<webcontents>`).
 
 ## License
 

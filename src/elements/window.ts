@@ -1,6 +1,6 @@
-import { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
-import { ElectronElement } from "./types";
-import { WebContentsElement, WebContentsSource } from "./webcontents";
+import { BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
+import type { ElectronElement } from "./types";
+import { WebContentsElement, type WebContentsSource } from "./webcontents";
 
 interface WindowElementProps extends Record<string, unknown> {
     width?: number;

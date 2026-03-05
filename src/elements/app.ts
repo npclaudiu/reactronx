@@ -1,5 +1,5 @@
 import { app } from "electron";
-import { ElectronElement } from "./types";
+import type { ElectronElement } from "./types";
 
 interface AppElementProps extends Record<string, unknown> {
     onWindowAllClosed?: () => void;

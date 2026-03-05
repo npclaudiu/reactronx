@@ -1,4 +1,4 @@
-import { ElectronElement } from "./types";
+import type { ElectronElement } from "./types";
 
 interface WebContentsProps extends Record<string, unknown> {
     url?: string;

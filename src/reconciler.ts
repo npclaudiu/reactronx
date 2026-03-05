@@ -1,10 +1,10 @@
+import { app } from "electron";
 import ReactReconciler from "react-reconciler";
 import { DefaultEventPriority } from "react-reconciler/constants";
 import { AppElement } from "./elements/app";
-import { WindowElement } from "./elements/window";
+import type { ElectronElement } from "./elements/types";
 import { WebContentsElement } from "./elements/webcontents";
-import { app } from "electron";
-import { ElectronElement } from "./elements/types";
+import { WindowElement } from "./elements/window";
 
 type Type = string;
 type Props = Record<string, unknown>;
@@ -13,12 +13,13 @@ type Instance = ElectronElement;
 type TextInstance = never;
 type SuspenseInstance = never;
 type HydratableInstance = never;
+type FormInstance = never;
 type PublicInstance = Instance;
 type HostContext = Record<string, unknown>;
-type UpdatePayload = Record<string, unknown>;
 type ChildSet = never;
 type TimeoutHandle = ReturnType<typeof setTimeout>;
 type NoTimeout = -1;
+type TransitionStatus = never;
 
 const hostConfig: ReactReconciler.HostConfig<
     Type,
@@ -28,12 +29,13 @@ const hostConfig: ReactReconciler.HostConfig<
     TextInstance,
     SuspenseInstance,
     HydratableInstance,
+    FormInstance,
     PublicInstance,
     HostContext,
-    UpdatePayload,
     ChildSet,
     TimeoutHandle,
-    NoTimeout
+    NoTimeout,
+    TransitionStatus
 > = {
     supportsMutation: true,
     supportsPersistence: false,
@@ -101,9 +103,6 @@ const hostConfig: ReactReconciler.HostConfig<
     finalizeInitialChildren() {
         return false;
     },
-    prepareUpdate() {
-        return {};
-    },
     shouldSetTextContent() {
         return false;
     },
@@ -132,9 +131,39 @@ const hostConfig: ReactReconciler.HostConfig<
     cancelTimeout: clearTimeout,
     noTimeout: -1,
     isPrimaryRenderer: true,
-    getCurrentEventPriority() {
+    getCurrentUpdatePriority() {
         return DefaultEventPriority;
     },
+    setCurrentUpdatePriority() {},
+    resolveUpdatePriority() {
+        return DefaultEventPriority;
+    },
+    trackSchedulerEvent() {},
+    resolveEventType() {
+        return null;
+    },
+    resolveEventTimeStamp() {
+        return -1;
+    },
+    shouldAttemptEagerTransition() {
+        return false;
+    },
+    requestPostPaintCallback() {},
+    maySuspendCommit() {
+        return false;
+    },
+    preloadInstance() {
+        return true;
+    },
+    startSuspendingCommit() {},
+    suspendInstance() {},
+    waitForCommitToBeReady() {
+        return null;
+    },
+    NotPendingTransition: null,
+    // biome-ignore lint/suspicious/noExplicitAny: Need to bypass missing HostTransitionContext in earlier versions easily.
+    HostTransitionContext: null as any,
+    resetFormInstance() {},
     getInstanceFromNode() {
         return null;
     },
@@ -170,8 +199,10 @@ export function render(reactElement: React.ReactNode) {
         false, // isStrictMode
         null, // concurrentUpdatesByDefaultOverride
         "", // identifierPrefix
+        (error) => console.error(error), // onUncaughtError
+        (error) => console.error(error), // onCaughtError
         (error) => console.error(error), // onRecoverableError
-        null, // transitionCallbacks
+        () => {}, // onDefaultTransitionIndicator
     );
 
     app.whenReady().then(() => {

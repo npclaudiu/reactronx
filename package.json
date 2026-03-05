@@ -4,17 +4,26 @@
     "description": "React-backed Electron reconciler resources (Main Process)",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
-    "scripts": {},
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "lint": "biome check .",
+        "format": "biome format --write ."
+    },
     "peerDependencies": {
         "electron": ">=28.0.0",
-        "react": "^18.2.0"
+        "react": ">=18.2.0"
     },
     "dependencies": {
         "react-reconciler": "^0.33.0"
     },
     "devDependencies": {
+        "@biomejs/biome": "^1.9.4",
+        "@types/node": "^22.0.0",
         "@types/react": "^19.2.14",
-        "@types/react-reconciler": "^0.33.0"
+        "@types/react-reconciler": "^0.33.0",
+        "react": "^19.0.0",
+        "typescript": "^5.7.3"
     },
     "author": "Claudiu Nedelcu",
     "license": "BSD-2-Clause",
